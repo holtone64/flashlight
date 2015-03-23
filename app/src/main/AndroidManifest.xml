@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="cirestudio.flashlight" >
 
-    <uses-sdk android:minSdkVersion="21"
+    <uses-sdk android:minSdkVersion="14"
         android:targetSdkVersion="21"
         android:maxSdkVersion="21" />
 

@@ -1,6 +1,5 @@
 package cirestudio.flashlight;
 
-import android.annotation.TargetApi;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -23,6 +22,10 @@ import android.util.Size;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.Surface;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.WindowManager;
+import android.widget.Switch;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,6 +44,11 @@ public class MainActivity extends ActionBarActivity {
     private SurfaceTexture mSurfaceTexture;
     private Surface mSurface;
     private List<Surface> mSurfaceList;
+    private Switch mSwitch;
+    private Camera.Parameters parameters;
+    private Camera camera;
+    private boolean ledSwitch;
+    private boolean backlightSwitch;
 
 
     @Override
@@ -51,7 +59,7 @@ public class MainActivity extends ActionBarActivity {
 
             mCallback = new CameraDevice.StateCallback() {
                 @Override
-                public void onOpened(CameraDevice camera) {
+                public void onOpened( CameraDevice camera ) {
                     try {
                         mCaptureRequestBuilder = camera.createCaptureRequest(CameraDevice.TEMPLATE_MANUAL);
 
@@ -123,7 +131,7 @@ public class MainActivity extends ActionBarActivity {
                 }
             };
 
-            // Why on earth do we need a handler to open the camera??
+            // According to camera2 example, we do not need
             mHandler = new Handler();
 
             mManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
@@ -133,15 +141,15 @@ public class MainActivity extends ActionBarActivity {
                 for (String idString : mCameraList) {
                     Integer m = mManager.getCameraCharacteristics(idString).get(CameraCharacteristics.LENS_FACING);
 
-                    if ((mManager.getCameraCharacteristics(idString).get(CameraCharacteristics.LENS_FACING) == CameraMetadata.LENS_FACING_BACK) &&
-                            (mManager.getCameraCharacteristics(idString).get(CameraCharacteristics.FLASH_INFO_AVAILABLE))) {
+                    if (( mManager.getCameraCharacteristics(idString).get(CameraCharacteristics.LENS_FACING) == CameraMetadata.LENS_FACING_BACK ) &&
+                            ( mManager.getCameraCharacteristics(idString).get(CameraCharacteristics.FLASH_INFO_AVAILABLE ) ) ) {
                         mCameraId = idString;
                         mManager.openCamera(mCameraId, mCallback, mHandler);
                         break;
                     }
                 }
 
-            } catch (CameraAccessException e) {
+            } catch ( CameraAccessException e ) {
                 e.printStackTrace();
             }
 
@@ -158,28 +166,30 @@ public class MainActivity extends ActionBarActivity {
                 AlertDialog error = builder.create();
                 error.show();
             }
-            ActionBar actionBar = getSupportActionBar();
-
         }
 
         else {
-
             Context context = this.getApplicationContext();
             if ( context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_CAMERA_FLASH ) ) {
                 // This works with deprecated android.hardware.Camera class
-                Camera camera = Camera.open();
-                Camera.Parameters p = camera.getParameters();
-                p.setFlashMode(Camera.Parameters.FLASH_MODE_TORCH);
-                camera.setParameters(p);
+                camera = Camera.open();
+                parameters = camera.getParameters();
+                parameters.setFlashMode(Camera.Parameters.FLASH_MODE_TORCH);
+                camera.setParameters( parameters );
                 camera.startPreview();
 
-                ActionBar actionBar = getSupportActionBar();
+                // hold value of the main led_switch sinc e we have to do an image switch instead
+                // of using a thumb switch.
+                ledSwitch  = true;
+                backlightSwitch = true;
 
             }
+            else {
+            }
         }
-
     }
 
+    
 
 
 
@@ -187,6 +197,39 @@ public class MainActivity extends ActionBarActivity {
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
+        //mSwitch = (Switch) findViewById(R.id.mainLight);
+
+
+        /**
+         *    removing the switch for now.  too much hassle to maintain while preserving
+         *    compatibility back to api level 7
+         */
+//        final MenuItem myswitch = menu.findItem(R.id.myswitch);
+//        final Switch mSwitch = (Switch) myswitch.getActionView();
+//
+//        //set the switch to ON
+//        mSwitch.setChecked(true);
+//
+//        //attach a listener to check for changes in state
+//        mSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+//
+//            @Override
+//            public void onCheckedChanged(CompoundButton buttonView,
+//                                         boolean isChecked) {
+//
+//                if(isChecked){
+//                    parameters.setFlashMode(Camera.Parameters.FLASH_MODE_TORCH);
+//                    camera.setParameters( parameters );
+//                    camera.startPreview();
+//                }
+//                else {
+//                    parameters.setFlashMode(Camera.Parameters.FLASH_MODE_OFF);-
+//                    camera.setParameters( parameters );
+//                    camera.stopPreview();
+//                }
+//            }
+//        });
+
         return true;
     }
 
@@ -195,13 +238,66 @@ public class MainActivity extends ActionBarActivity {
         // Handle action bar item clicks here. The action bar will
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
+//        int id = item.getItemId();
 
         //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
-        }
+//        if (id == R.id.action_settings) {
+//            return true;
+//        }
 
+        switch ( item.getItemId() ) {
+
+            case R.id.led_switch:
+                if ( ledSwitch == true ) {
+                    // set boolean LED check to false
+                    ledSwitch = false;
+
+                    // if the LED light is already on, turn it off
+                    parameters.setFlashMode( Camera.Parameters.FLASH_MODE_OFF );
+                    camera.setParameters( parameters );
+                    camera.stopPreview();
+
+                    // dynamically switch the image in the action bar
+                    item.setIcon ( R.drawable.ic_flashlight_off);
+                }
+                else {
+                    // set boolean LED check to true
+                    ledSwitch = true;
+
+                    // if the LED light is off, turn it on
+                    parameters.setFlashMode( Camera.Parameters.FLASH_MODE_TORCH );
+                    camera.setParameters( parameters );
+                    camera.startPreview();
+
+                    // dynamically switch the image in the action bar
+                    item.setIcon ( R.drawable.ic_flashlight_on );
+
+                }
+                break;
+
+            case R.id.action_backlight:
+                if ( backlightSwitch == true ) {
+                    backlightSwitch = false;
+                    adjustBacklight( 0 );
+                }
+                else {
+                    backlightSwitch = true;
+                    adjustBacklight( -1 );
+                }
+        }
         return super.onOptionsItemSelected(item);
+    }
+    public void adjustBacklight( float value ) {
+        WindowManager.LayoutParams layout = getWindow().getAttributes();
+        layout.screenBrightness = value;
+        getWindow().setAttributes( layout );
+
+        // not needed
+//        findViewById( android.R.id.content ).invalidate();
+//        findViewById( android.R.id.content ).requestLayout();
+
+        // this code does not work
+//        View view = findViewById(R.id.mainLayout);
+//        view.invalidate();
     }
 }

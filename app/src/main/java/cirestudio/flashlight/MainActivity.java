@@ -322,25 +322,6 @@ public class MainActivity extends ActionBarActivity {
     }
 
     private void close() {
-        if ( Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP ) {
-            if (mCameraDevice == null || mSession == null) {
-                return;
-            }
-            mSession.close();
-            mCameraDevice.close();
-            mCameraDevice = null;
-            mSession = null;
-            this.finish();
-        }
-        else {
-            this.finish();
-        }
+        System.exit(0);
     }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        //close();
-    }
-
 }

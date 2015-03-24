@@ -8,4 +8,7 @@
     <string name="action_backlight">Back Light</string>
     <string name="action_flashlight">Flashlight</string>
 
+<!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+
 </resources>

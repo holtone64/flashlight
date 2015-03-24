@@ -4,6 +4,7 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
+import android.graphics.ImageFormat;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
 import android.hardware.camera2.CameraAccessException;
@@ -13,11 +14,13 @@ import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.CaptureRequest;
+import android.hardware.camera2.params.StreamConfigurationMap;
 import android.os.Build;
 import android.os.Handler;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.util.Size;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -34,7 +37,7 @@ import java.util.List;
 public class MainActivity extends ActionBarActivity {
 
     private CameraManager mManager;
-    private CameraDevice mCamera;
+    private CameraDevice mCameraDevice;
     private String[] mCameraList;
     private String mCameraId;
     private CameraDevice.StateCallback mCallback;
@@ -56,12 +59,21 @@ public class MainActivity extends ActionBarActivity {
         super.onCreate(savedInstanceState);
         if ( Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP ) {
             setContentView(R.layout.activity_main);
+            new Thread(new MyRunnable()).start();
 
             mCallback = new CameraDevice.StateCallback() {
                 @Override
                 public void onOpened( CameraDevice camera ) {
+                    mCameraDevice = camera;
                     try {
-                        mCaptureRequestBuilder = camera.createCaptureRequest(CameraDevice.TEMPLATE_MANUAL);
+                        // camera2 demo uses CameraDevice.TEMPLATE_MANUAL here, but I get an error:
+                        // Bad argument passed to camera service
+                        //mCaptureRequestBuilder = camera.createCaptureRequest( CameraDevice.TEMPLATE_MANUAL );
+
+                        //mCaptureRequestBuilder = camera.createCaptureRequest( CameraDevice.TEMPLATE_STILL_CAPTURE );
+                        mCaptureRequestBuilder = camera.createCaptureRequest( CameraDevice.TEMPLATE_PREVIEW );
+
+
 
                         mCaptureRequestBuilder.set(CaptureRequest.CONTROL_AE_MODE, CameraMetadata.CONTROL_AE_MODE_ON);
                         mCaptureRequestBuilder.set(CaptureRequest.FLASH_MODE, CameraMetadata.FLASH_MODE_TORCH);
@@ -189,9 +201,87 @@ public class MainActivity extends ActionBarActivity {
         }
     }
 
-    
 
 
+    class MyRunnable implements Runnable {
+
+        @SuppressWarnings("ResourceType")
+        @Override
+        public void run() {
+            try {
+                //初始化参数到sharedPreference
+                CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+                String[] cameraIds = manager.getCameraIdList();
+                if (cameraIds != null && cameraIds.length > 0) {
+                    //后置摄像头存在
+                    if (cameraIds[0] != null) {
+                        CameraCharacteristics character = manager.getCameraCharacteristics(cameraIds[0]);
+                        //流配置
+                        StreamConfigurationMap map = character.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+                        //适合SurfaceTexture的显示的size
+                        Size[] previewSizes = map.getOutputSizes(SurfaceTexture.class);
+                        //图片格式
+                        int[] formatsAll = map.getOutputFormats();
+                        //这里只要jpeg和dng
+                        List<Integer> formatList = new ArrayList<Integer>();
+                        for (int format : formatsAll) {
+                            if (format == ImageFormat.JPEG || format == ImageFormat.RAW_SENSOR) {
+                                formatList.add(format);
+                            }
+                        }
+                        Integer[] formats = formatList.toArray(new Integer[formatList.size()]);
+                        //不同的format对应不同的照片size
+                        Size[][] pictureSizes = new Size[formats.length][];
+                        for (int i = 0; i < formats.length; i++) {
+                            //这里会出现有的格式但是没有保存图片的size
+                            if (null != map.getOutputSizes(formats[i])) {
+                                pictureSizes[i] = map.getOutputSizes(formats[i]);
+                            } else {
+                                Log.i("Runnable", "camera0--->map.getOutputSizes为空");
+                            }
+                        }
+                        //PreferenceHelper.writePreferenceForCameraId(MyActivity.this, "camera0", previewSizes, formats, pictureSizes);
+
+                    }
+                    if (cameraIds[1] != null) {//前置摄像头存在
+                        CameraCharacteristics character = manager.getCameraCharacteristics(cameraIds[1]);
+                        //流配置
+                        StreamConfigurationMap map = character.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+                        //适合SurfaceTexture的显示的size
+                        Size[] previewSizes = map.getOutputSizes(SurfaceTexture.class);
+                        //图片格式
+                        int[] formatsAll = map.getOutputFormats();
+                        //这里只要jpeg和dng
+                        List<Integer> formatList = new ArrayList<Integer>();
+                        for (int format : formatsAll) {
+                            if (format == ImageFormat.JPEG || format == ImageFormat.RAW_SENSOR) {
+                                formatList.add(format);
+                            }
+                        }
+                        Integer[] formats = formatList.toArray(new Integer[formatList.size()]);
+                        //不同的format对应不同的照片size
+                        Size[][] pictureSizes = new Size[formats.length][];
+                        for (int i = 0; i < formats.length; i++) {
+                            //这里会出现有的格式但是没有保存图片的size
+                            if (null != map.getOutputSizes(formats[i])) {
+                                pictureSizes[i] = map.getOutputSizes(formats[i]);
+                            } else {
+                                Log.i("Runnable", "camera1--->map.getOutputSizes为空");
+                            }
+                        }
+                        //PreferenceHelper.writePreferenceForCameraId(MyActivity.this, "camera1", previewSizes, formats, pictureSizes);
+                    }
+                }
+            } catch (CameraAccessException e) {
+                e.printStackTrace();
+                //mHandler.sendEmptyMessage(INIT_BAD);
+                return;
+            }
+            //初始化一开始打开cameraia为1的摄像头
+            //PreferenceHelper.writeCurrentCameraid(MyActivity.this, "0");
+            //mHandler.sendEmptyMessage(INIT_OK);
+        }
+    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {

@@ -41,7 +41,6 @@ public class MainActivity extends ActionBarActivity {
     private String[] mCameraList;
     private String mCameraId;
     private CameraDevice.StateCallback mCallback;
-    private Handler mHandler;
     private CaptureRequest.Builder mCaptureRequestBuilder;
     private CameraCaptureSession mSession;
     private SurfaceTexture mSurfaceTexture;
@@ -123,9 +122,9 @@ public class MainActivity extends ActionBarActivity {
                             }
                         };
 
-                        camera.createCaptureSession(surfaceList, stateCallback, mHandler);
+                        camera.createCaptureSession( surfaceList, stateCallback, null );
 
-
+                    ledSwitch = true;
                     } catch (CameraAccessException e) {
                         e.printStackTrace();
                     }
@@ -142,9 +141,6 @@ public class MainActivity extends ActionBarActivity {
                 }
             };
 
-            // According to camera2 example, we do not need
-            mHandler = new Handler();
-
             mManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
             try {
                 mCameraList = mManager.getCameraIdList();
@@ -155,7 +151,7 @@ public class MainActivity extends ActionBarActivity {
                     if (( mManager.getCameraCharacteristics(idString).get(CameraCharacteristics.LENS_FACING) == CameraMetadata.LENS_FACING_BACK ) &&
                             ( mManager.getCameraCharacteristics(idString).get(CameraCharacteristics.FLASH_INFO_AVAILABLE ) ) ) {
                         mCameraId = idString;
-                        mManager.openCamera(mCameraId, mCallback, mHandler);
+                        mManager.openCamera( mCameraId, mCallback, null );
                         break;
                     }
                 }
@@ -253,33 +249,50 @@ public class MainActivity extends ActionBarActivity {
 //        }
 
         switch ( item.getItemId() ) {
-
             case R.id.led_switch:
-                if ( ledSwitch == true ) {
-                    // set boolean LED check to false
-                    ledSwitch = false;
-
-                    // if the LED light is already on, turn it off
-                    parameters.setFlashMode( Camera.Parameters.FLASH_MODE_OFF );
-                    camera.setParameters( parameters );
-                    camera.stopPreview();
-
-                    // dynamically switch the image in the action bar
-                    item.setIcon ( R.drawable.ic_flashlight_off);
+                if ( Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP ) {
+                    try {
+                        if ( ledSwitch == true ) {
+                            mCaptureRequestBuilder.set(CaptureRequest.FLASH_MODE, CameraMetadata.FLASH_MODE_OFF);
+                            mSession.setRepeatingRequest( mCaptureRequestBuilder.build(), null, null);
+                            ledSwitch = false;
+                        }
+                        else {
+                            mCaptureRequestBuilder.set( CaptureRequest.FLASH_MODE, CameraMetadata.FLASH_MODE_TORCH );
+                            mSession.setRepeatingRequest( mCaptureRequestBuilder.build(), null, null);
+                            ledSwitch = true;
+                        }
+                    } catch ( CameraAccessException e ) {
+                        e.printStackTrace();
+                    }
                 }
                 else {
-                    // set boolean LED check to true
-                    ledSwitch = true;
+                    if ( ledSwitch == true ) {
+                        // set boolean LED check to false
+                        ledSwitch = false;
 
-                    // if the LED light is off, turn it on
-                    parameters.setFlashMode( Camera.Parameters.FLASH_MODE_TORCH );
-                    camera.setParameters( parameters );
-                    camera.startPreview();
+                        // if the LED light is already on, turn it off
+                        parameters.setFlashMode( Camera.Parameters.FLASH_MODE_OFF );
+                        camera.setParameters( parameters );
+                        camera.stopPreview();
 
-                    // dynamically switch the image in the action bar
-                    item.setIcon ( R.drawable.ic_flashlight_on );
+                        // dynamically switch the image in the action bar
+                        item.setIcon ( R.drawable.ic_flashlight_off);
+                    }
+                    else {
+                        // set boolean LED check to true
+                        ledSwitch = true;
 
+                        // if the LED light is off, turn it on
+                        parameters.setFlashMode( Camera.Parameters.FLASH_MODE_TORCH );
+                        camera.setParameters( parameters );
+                        camera.startPreview();
+
+                        // dynamically switch the image in the action bar
+                        item.setIcon ( R.drawable.ic_flashlight_on );
+                    }
                 }
+
                 break;
 
             case R.id.action_backlight:
@@ -291,20 +304,41 @@ public class MainActivity extends ActionBarActivity {
                     backlightSwitch = true;
                     adjustBacklight( -1 );
                 }
+                break;
+
+            case R.id.action_exit:
+                close();
+                break;
         }
         return super.onOptionsItemSelected(item);
     }
+
     public void adjustBacklight( float value ) {
         WindowManager.LayoutParams layout = getWindow().getAttributes();
         layout.screenBrightness = value;
         getWindow().setAttributes( layout );
-
-        // not needed
-//        findViewById( android.R.id.content ).invalidate();
-//        findViewById( android.R.id.content ).requestLayout();
-
-        // this code does not work
-//        View view = findViewById(R.id.mainLayout);
-//        view.invalidate();
     }
+
+    private void close() {
+        if ( Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP ) {
+            if (mCameraDevice == null || mSession == null) {
+                return;
+            }
+            mSession.close();
+            mCameraDevice.close();
+            mCameraDevice = null;
+            mSession = null;
+            this.finish();
+        }
+        else {
+            this.finish();
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        close();
+    }
+
 }

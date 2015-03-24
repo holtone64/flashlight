@@ -59,87 +59,7 @@ public class MainActivity extends ActionBarActivity {
         if ( Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP ) {
             setContentView(R.layout.activity_main);
 
-            mCallback = new CameraDevice.StateCallback() {
-                @Override
-                public void onOpened( CameraDevice camera ) {
-                    mCameraDevice = camera;
-                    try {
-                        // camera2 demo uses CameraDevice.TEMPLATE_MANUAL here, but I get an error:
-                        // Bad argument passed to camera service
-                        //mCaptureRequestBuilder = camera.createCaptureRequest( CameraDevice.TEMPLATE_MANUAL );
 
-                        //mCaptureRequestBuilder = camera.createCaptureRequest( CameraDevice.TEMPLATE_STILL_CAPTURE );
-                        mCaptureRequestBuilder = camera.createCaptureRequest( CameraDevice.TEMPLATE_PREVIEW );
-
-
-
-                        mCaptureRequestBuilder.set(CaptureRequest.CONTROL_AE_MODE, CameraMetadata.CONTROL_AE_MODE_ON);
-                        mCaptureRequestBuilder.set(CaptureRequest.FLASH_MODE, CameraMetadata.FLASH_MODE_TORCH);
-
-                        // Even though we will not be showing any pictures, createCaptureSession requires a list of surfaces
-                        // We will create a list and add a single surface to it
-                        // the surfaces and list will be saved as member variables, since these same surfaces
-                        // will be used while the camera is open.
-                        List surfaceList = new ArrayList<Surface>();
-
-                        // The int required by SurfaceTexture is just an ID.  since we only need one, i picked something unique
-                        mSurfaceTexture = new SurfaceTexture(42);
-
-                        // Now, we ned to determine the smallest output size available to the camera device since we want the
-                        // smallest surface possible.
-                        Size[] outputSizes = mManager.getCameraCharacteristics(mCameraId)
-                                .get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
-                                .getOutputSizes(SurfaceTexture.class);
-
-                        Size smallestOutputSize = outputSizes[0];
-                        for (Size i : outputSizes) {
-                            if (smallestOutputSize.getWidth() >= i.getWidth() && smallestOutputSize.getHeight() >= i.getHeight()) {
-                                smallestOutputSize = i;
-                            }
-                        }
-
-                        mSurfaceTexture.setDefaultBufferSize(smallestOutputSize.getWidth(), smallestOutputSize.getHeight());
-                        mSurface = new Surface(mSurfaceTexture);
-                        surfaceList.add(mSurface);
-                        mCaptureRequestBuilder.addTarget(mSurface);
-
-                        CameraCaptureSession.StateCallback stateCallback = new CameraCaptureSession.StateCallback() {
-                            @Override
-                            public void onConfigured(CameraCaptureSession session) {
-                                mSession = session;
-                                try {
-                                    // Need this to avoid having to send too many capture requests
-                                    // should hold the 'preview' in place
-                                    mSession.setRepeatingRequest(mCaptureRequestBuilder.build(), null, null);
-                                } catch (CameraAccessException e) {
-                                    e.printStackTrace();
-                                }
-                            }
-
-                            @Override
-                            public void onConfigureFailed(CameraCaptureSession session) {
-
-                            }
-                        };
-
-                        camera.createCaptureSession( surfaceList, stateCallback, null );
-
-                    ledSwitch = true;
-                    } catch (CameraAccessException e) {
-                        e.printStackTrace();
-                    }
-                }
-
-                @Override
-                public void onDisconnected(CameraDevice camera) {
-
-                }
-
-                @Override
-                public void onError(CameraDevice camera, int error) {
-
-                }
-            };
 
             mManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
             try {
@@ -151,7 +71,7 @@ public class MainActivity extends ActionBarActivity {
                     if (( mManager.getCameraCharacteristics(idString).get(CameraCharacteristics.LENS_FACING) == CameraMetadata.LENS_FACING_BACK ) &&
                             ( mManager.getCameraCharacteristics(idString).get(CameraCharacteristics.FLASH_INFO_AVAILABLE ) ) ) {
                         mCameraId = idString;
-                        mManager.openCamera( mCameraId, mCallback, null );
+                        mManager.openCamera( mCameraId, new myCameraDeviceStateCallback(), null );
                         break;
                     }
                 }
@@ -193,6 +113,88 @@ public class MainActivity extends ActionBarActivity {
             }
             else {
             }
+        }
+    }
+
+    class myCameraDeviceStateCallback extends CameraDevice.StateCallback {
+        @Override
+        public void onOpened( CameraDevice camera ) {
+            mCameraDevice = camera;
+            try {
+                // camera2 demo uses CameraDevice.TEMPLATE_MANUAL here, but I get an error:
+                // Bad argument passed to camera service
+                //mCaptureRequestBuilder = camera.createCaptureRequest( CameraDevice.TEMPLATE_MANUAL );
+
+                //mCaptureRequestBuilder = camera.createCaptureRequest( CameraDevice.TEMPLATE_STILL_CAPTURE );
+                mCaptureRequestBuilder = camera.createCaptureRequest( CameraDevice.TEMPLATE_PREVIEW );
+
+
+
+                mCaptureRequestBuilder.set(CaptureRequest.CONTROL_AE_MODE, CameraMetadata.CONTROL_AE_MODE_ON);
+                mCaptureRequestBuilder.set(CaptureRequest.FLASH_MODE, CameraMetadata.FLASH_MODE_TORCH);
+
+                // Even though we will not be showing any pictures, createCaptureSession requires a list of surfaces
+                // We will create a list and add a single surface to it
+                // the surfaces and list will be saved as member variables, since these same surfaces
+                // will be used while the camera is open.
+                List surfaceList = new ArrayList<Surface>();
+
+                // The int required by SurfaceTexture is just an ID.  since we only need one, i picked something unique
+                mSurfaceTexture = new SurfaceTexture(42);
+
+                // Now, we ned to determine the smallest output size available to the camera device since we want the
+                // smallest surface possible.
+                Size[] outputSizes = mManager.getCameraCharacteristics(mCameraId)
+                        .get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
+                        .getOutputSizes(SurfaceTexture.class);
+
+                Size smallestOutputSize = outputSizes[0];
+                for (Size i : outputSizes) {
+                    if (smallestOutputSize.getWidth() >= i.getWidth() && smallestOutputSize.getHeight() >= i.getHeight()) {
+                        smallestOutputSize = i;
+                    }
+                }
+
+                mSurfaceTexture.setDefaultBufferSize(smallestOutputSize.getWidth(), smallestOutputSize.getHeight());
+                mSurface = new Surface(mSurfaceTexture);
+                surfaceList.add(mSurface);
+                mCaptureRequestBuilder.addTarget(mSurface);
+
+                CameraCaptureSession.StateCallback stateCallback = new CameraCaptureSession.StateCallback() {
+                    @Override
+                    public void onConfigured(CameraCaptureSession session) {
+                        mSession = session;
+                        try {
+                            // Need this to avoid having to send too many capture requests
+                            // should hold the 'preview' in place
+                            mSession.setRepeatingRequest(mCaptureRequestBuilder.build(), null, null);
+                        } catch (CameraAccessException e) {
+                            e.printStackTrace();
+                        }
+                    }
+
+                    @Override
+                    public void onConfigureFailed(CameraCaptureSession session) {
+
+                    }
+                };
+
+                camera.createCaptureSession( surfaceList, stateCallback, null );
+
+                ledSwitch = true;
+            } catch (CameraAccessException e) {
+                e.printStackTrace();
+            }
+        }
+
+        @Override
+        public void onDisconnected(CameraDevice camera) {
+
+        }
+
+        @Override
+        public void onError(CameraDevice camera, int error) {
+
         }
     }
 
@@ -338,7 +340,7 @@ public class MainActivity extends ActionBarActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        close();
+        //close();
     }
 
 }

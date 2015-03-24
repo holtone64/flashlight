@@ -25,6 +25,7 @@ import android.util.Size;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.Surface;
+import android.view.SurfaceHolder;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
@@ -56,11 +57,8 @@ public class MainActivity extends ActionBarActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
         if ( Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP ) {
-            setContentView(R.layout.activity_main);
-
-
-
             mManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
             try {
                 mCameraList = mManager.getCameraIdList();
@@ -319,6 +317,15 @@ public class MainActivity extends ActionBarActivity {
         WindowManager.LayoutParams layout = getWindow().getAttributes();
         layout.screenBrightness = value;
         getWindow().setAttributes( layout );
+    }
+
+    @Override
+    protected void onPause() {
+        if( camera != null ){
+            camera.release();
+            camera = null;
+        }
+        super.onPause();
     }
 
     private void close() {

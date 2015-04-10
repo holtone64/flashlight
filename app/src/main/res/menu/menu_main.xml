@@ -18,16 +18,16 @@
         android:orderInCategory="200"
         app:showAsAction="ifRoom" />
 
-    <item
-        android:id="@+id/action_settings"
-        android:title="@string/action_settings"
-        android:orderInCategory="300"
-        app:showAsAction="never" />
+    <!--<item-->
+        <!--android:id="@+id/action_settings"-->
+        <!--android:title="@string/action_settings"-->
+        <!--android:orderInCategory="300"-->
+        <!--app:showAsAction="never" />-->
 
     <item
         android:id="@+id/action_exit"
         android:title="@string/action_exit"
-        android:orderInCategory="400"
+        android:orderInCategory="300"
         app:showAsAction="never" />
 
 </menu>

@@ -4,7 +4,6 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
-import android.graphics.ImageFormat;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
 import android.hardware.camera2.CameraAccessException;
@@ -14,20 +13,13 @@ import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.CaptureRequest;
-import android.hardware.camera2.params.StreamConfigurationMap;
 import android.os.Build;
-import android.os.Handler;
-import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
-import android.util.Log;
 import android.util.Size;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.Surface;
-import android.view.SurfaceHolder;
-import android.view.View;
-import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.Switch;
 
@@ -43,7 +35,7 @@ public class MainActivity extends ActionBarActivity {
     private String mCameraId;
     private CameraDevice.StateCallback mCallback;
     private CaptureRequest.Builder mCaptureRequestBuilder;
-    private CameraCaptureSession mSession;
+    private CameraCaptureSession mCaptureSession;
     private SurfaceTexture mSurfaceTexture;
     private Surface mSurface;
     private List<Surface> mSurfaceList;
@@ -58,14 +50,13 @@ public class MainActivity extends ActionBarActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        ledSwitch = true;
         if ( Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP ) {
             mManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
             try {
                 mCameraList = mManager.getCameraIdList();
-
                 for (String idString : mCameraList) {
                     Integer m = mManager.getCameraCharacteristics(idString).get(CameraCharacteristics.LENS_FACING);
-
                     if (( mManager.getCameraCharacteristics(idString).get(CameraCharacteristics.LENS_FACING) == CameraMetadata.LENS_FACING_BACK ) &&
                             ( mManager.getCameraCharacteristics(idString).get(CameraCharacteristics.FLASH_INFO_AVAILABLE ) ) ) {
                         mCameraId = idString;
@@ -73,11 +64,9 @@ public class MainActivity extends ActionBarActivity {
                         break;
                     }
                 }
-
             } catch ( CameraAccessException e ) {
                 e.printStackTrace();
             }
-
             if (mCameraId == null) {
                 AlertDialog.Builder builder = new AlertDialog.Builder(this);
                 builder
@@ -92,7 +81,6 @@ public class MainActivity extends ActionBarActivity {
                 error.show();
             }
         }
-
         else {
             Context context = this.getApplicationContext();
             if ( context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_CAMERA_FLASH ) ) {
@@ -107,7 +95,6 @@ public class MainActivity extends ActionBarActivity {
                 // of using a thumb switch.
                 ledSwitch  = true;
                 backlightSwitch = true;
-
             }
             else {
             }
@@ -137,7 +124,7 @@ public class MainActivity extends ActionBarActivity {
                 // will be used while the camera is open.
                 List surfaceList = new ArrayList<Surface>();
 
-                // The int required by SurfaceTexture is just an ID.  since we only need one, i picked something unique
+                // The int required by SurfaceTexture is just an ID.  since we only need one, I picked something unique
                 mSurfaceTexture = new SurfaceTexture(42);
 
                 // Now, we ned to determine the smallest output size available to the camera device since we want the
@@ -158,32 +145,15 @@ public class MainActivity extends ActionBarActivity {
                 surfaceList.add(mSurface);
                 mCaptureRequestBuilder.addTarget(mSurface);
 
-                CameraCaptureSession.StateCallback stateCallback = new CameraCaptureSession.StateCallback() {
-                    @Override
-                    public void onConfigured(CameraCaptureSession session) {
-                        mSession = session;
-                        try {
-                            // Need this to avoid having to send too many capture requests
-                            // should hold the 'preview' in place
-                            mSession.setRepeatingRequest(mCaptureRequestBuilder.build(), null, null);
-                        } catch (CameraAccessException e) {
-                            e.printStackTrace();
-                        }
-                    }
 
-                    @Override
-                    public void onConfigureFailed(CameraCaptureSession session) {
 
-                    }
-                };
-
-                camera.createCaptureSession( surfaceList, stateCallback, null );
-
-                ledSwitch = true;
+                camera.createCaptureSession( surfaceList, new MyCameraCaptureSessionStateCallback(), null );
             } catch (CameraAccessException e) {
                 e.printStackTrace();
             }
         }
+
+
 
         @Override
         public void onDisconnected(CameraDevice camera) {
@@ -192,6 +162,25 @@ public class MainActivity extends ActionBarActivity {
 
         @Override
         public void onError(CameraDevice camera, int error) {
+
+        }
+    }
+
+    class MyCameraCaptureSessionStateCallback extends CameraCaptureSession.StateCallback {
+        @Override
+        public void onConfigured(CameraCaptureSession session) {
+            mCaptureSession = session;
+            try {
+                // Need this to avoid having to send too many capture requests
+                // should hold the 'preview' in place
+                mCaptureSession.setRepeatingRequest(mCaptureRequestBuilder.build(), null, null);
+            } catch (CameraAccessException e) {
+                e.printStackTrace();
+            }
+        }
+
+        @Override
+        public void onConfigureFailed(CameraCaptureSession session) {
 
         }
     }
@@ -233,8 +222,8 @@ public class MainActivity extends ActionBarActivity {
 //            }
 //        });
 
-        return true;
-    }
+         return true;
+                    }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
@@ -254,12 +243,12 @@ public class MainActivity extends ActionBarActivity {
                     try {
                         if ( ledSwitch == true ) {
                             mCaptureRequestBuilder.set(CaptureRequest.FLASH_MODE, CameraMetadata.FLASH_MODE_OFF);
-                            mSession.setRepeatingRequest( mCaptureRequestBuilder.build(), null, null);
+                            mCaptureSession.setRepeatingRequest(mCaptureRequestBuilder.build(), null, null);
                             ledSwitch = false;
                         }
                         else {
                             mCaptureRequestBuilder.set( CaptureRequest.FLASH_MODE, CameraMetadata.FLASH_MODE_TORCH );
-                            mSession.setRepeatingRequest( mCaptureRequestBuilder.build(), null, null);
+                            mCaptureSession.setRepeatingRequest(mCaptureRequestBuilder.build(), null, null);
                             ledSwitch = true;
                         }
                     } catch ( CameraAccessException e ) {
@@ -319,14 +308,29 @@ public class MainActivity extends ActionBarActivity {
         getWindow().setAttributes( layout );
     }
 
-    @Override
-    protected void onPause() {
-        if( camera != null ){
-            camera.release();
-            camera = null;
-        }
-        super.onPause();
-    }
+    // onPause function is useful if we want the app to rotate the flashlight activity with the screen.
+    // this behavior is generally undesired.
+//    @Override
+//    public void onPause( ) {
+//        super.onPause();
+//        try {
+//            // this is for pre 5.0 code using the old camera class
+//            if (camera != null) {
+//                camera.release();
+//                camera = null;
+//            }
+//            // 5.0 code that uses camera2 classes
+//            if (mCaptureSession != null) {
+//                mCaptureSession.close();
+//                mCaptureSession = null;
+//            }
+//        } finally {
+//            if ( mCameraDevice != null ) {
+//                mCameraDevice.close();
+//                mCameraDevice = null;
+//            }
+//        }
+//    }
 
     private void close() {
         System.exit(0);
